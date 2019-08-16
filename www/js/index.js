@@ -1,113 +1,180 @@
-/*
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing,
- * software distributed under the License is distributed on an
- * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied.  See the License for the
- * specific language governing permissions and limitations
- * under the License.
- */
-var app = {
-    // Application Constructor
-    initialize: function() {
-        document.addEventListener('deviceready', this.onDeviceReady.bind(this), false);
-    },
 
-    // deviceready Event Handler
-    //
-    // Bind any cordova events here. Common events are:
-    // 'pause', 'resume', etc.
-    onDeviceReady: function() {
-        this.receivedEvent('deviceready');
-    },
+//Select Elements
+const erase= document.querySelector(".erase");
+const dateDisplay= document.getElementById("date");
+const display_toDoList = document.getElementById("todoList");
+const todo_input= document.getElementById("todoInput");
+const addBtn= document.querySelector("addBtn");
 
-    // Update DOM on a Received Event
-    receivedEvent: function(id) {
-        var parentElement = document.getElementById(id);
-        var listeningElement = parentElement.querySelector('.listening');
-        var receivedElement = parentElement.querySelector('.received');
+//CSS Applied for check, uncheck elements
+const CHECKED= "fa-check-circle";
+const UNCHECKED= "fa-circle-thin";
+const CROSS_LINE= "lineThrough";
 
-        listeningElement.setAttribute('style', 'display:none;');
-        receivedElement.setAttribute('style', 'display:block;');
+//Initialise a variable to store list into local storage
+let LIST, id;
 
-        console.log('Received Event: ' + id);
-    }
-};
-app.initialize();
 
-//select element
-const clear= document.querySelector(".clear");
-const dateElement= document.getElementById("date");
-const list= document.getElementById("list");
-const input=document.getElementById("input");
-const CHECK= "fa-check-circle";
-const UNCHECK= "fa-circle-thin";
-const LINE_THROUGH= "lineThrough";
 
-//defining function to add task
-function addToDo(toDo,id,completed,trash){
 
+//Show date
+const options= {weekday: "long", month:"short", day:"numeric"};
+const toDay= new Date();
+
+dateDisplay.innerHTML= toDay.toLocaleDateString("en-US", options);
+
+//function to add todo item
+function addTodoItem(toDoTxt, id, completed, trash){
 	if(trash){return;}
 
-	const COMPLETED= completed ? CHECK : UNCHECK;
-	const LINE= completed ? LINE_THROUGH : "";
-//add items to list by insertAdjacentHTML(position, text)
-//->defining text
-const text=`<li class="item">
-				<i class="fa ${DONE}  complete" job="complete" id="${id}"></i>
-				<p class="text ${LINE}"> ${toDo} </p>
-				<i class="de fa fa-trash-o" job="delete" id="${id}"></i>
-			</li>`;
+	const COMPLETED= completed ? CHECKED : UNCHECKED;
+	const LINE = completed ? CROSS_LINE : "";
 
-//defining position
-const position= "beforeend"
-list.insertAdjacentHTML(position, text);
+	const addedItem=
+	`<li class="item">
+	<i class="fa ${COMPLETED} co" job="complete" id="${id}"></i>
+	<p class="text ${LINE}">${toDoTxt}</p>
+	<i class="fa fa-trash-o de" job="delete" id="${id}"></i>
+	</li>`;
+
+	const position="beforeend";
+	display_toDoList.insertAdjacentHTML(position, addedItem);
 }
 
-//define a list Store task in list
-let LIST=[];
-let id=0;
 
-document.addEventListener("keyup", function(event){
-	//keycode=13 is Enter button
+//using enter key to trigger add item event
+document.addEventListener("keyup", function(even){
 	if(event.keyCode == 13){
+		const toDo= todo_input.value;
 
-		//get value input
-		const toDo= input.value;
+		//check the input is empty or not
+		if (toDo){
+			addTodoItem(toDo, id, false, false);
 
-		//check input empty
-		if(toDo){
-			//add task
-			addToDo(toDo, id, false, false);
-			
-			//store in
-			LIST.push(
-				{
-					name: toDo,
-					id: id,
-					done: false,
-					trash:false
-				}
-			);
+			LIST.push({
+				name: toDo,
+				id: id,
+				completed: false,
+				trash: false
+			});
+
+			//store list of items to localstorage
+			localStorage.setItem("todoList", JSON.stringify(LIST));
+			id++;
 		}
 
-		//clear input
-		input.value="";
-
-		//auto increment id
-		id++;
+		//after adding, clear input section
+		todo_input.value="";
 	}
 });
 
-//function to complete Todo
+//FUNCTION to trigger complete to do item
+function doneToDo(element){
+	element.classList.toggle(CHECKED);
+	element.classList.toggle(UNCHECKED);
+	element.parentNode.querySelector(".text").classList.toggle(CROSS_LINE);
 
+	LIST[element.id].completed = LIST[element.id].completed ? false : true;
+}
 
+//function to trigger when removing item from todo list
+function deleteToDo(element){
+	element.parentNode.parentNode.removeChild(element.parentNode);
+
+	LIST[element.id].trash= true;
+}
+
+//access item in the list dynamically
+
+display_toDoList.addEventListener("click", function(event){
+	const element = event.target; //to get the clicked element inside the list
+	const elementJob = element.attributes.job.value; //complete or delete
+
+	if(elementJob == "complete"){
+		doneToDo(element);
+	} else if(elementJob== "delete"){
+		deleteToDo(element);
+	}
+
+	//store list of items to localstorage
+	localStorage.setItem("todoList", JSON.stringify(LIST));
+});
+
+//declare a variable to get data from localstorage
+let data= localStorage.getItem("todoList");
+
+//check empty data
+
+if(data){	//data isn't empty
+	LIST= JSON.parse(data);
+	id= LIST.length;	//set the id to the last one in the list
+	autoLoad(LIST);		//load the list to UI
+}
+else 	//data is empty
+{
+	LIST=[];
+	id=0;
+}
+
+//automatically load items to the UI
+function autoLoad(array){
+	array.forEach(function(item){
+		addTodoItem(item.name, item.id, item.completed, item.trash);
+	});
+}
+
+//clear all the local storage
+erase.addEventListener("click", function(){
+	localStorage.clear();
+	location.reload();
+});
+
+function addItemByIcon(){
+	const toDo= todo_input.value;
+
+		//check the input is empty or not
+		if (toDo){
+			addTodoItem(toDo, id, false, false);
+
+			LIST.push({
+				name: toDo,
+				id: id,
+				completed: false,
+				trash: false
+			});
+
+			//store list of items to localstorage
+			localStorage.setItem("todoList", JSON.stringify(LIST));
+			id++;
+		}
+
+		//after adding, clear input section
+		todo_input.value="";
+};
+
+//Plugin for GeoLocation
+document.getElementById("getPosition").addEventListener("click", getPosition);
+
+function getPosition() {
+	var options = {
+	   enableHighAccuracy: true,
+	   maximumAge: 3600000
+	}
+	var watchID = navigator.geolocation.getCurrentPosition(onSuccess, onError, options);
+ 
+	function onSuccess(position) {
+	   alert('Latitude: '          + position.coords.latitude          + '\n' +
+		  'Longitude: '         + position.coords.longitude         + '\n' +
+		  'Altitude: '          + position.coords.altitude          + '\n' +
+		  'Accuracy: '          + position.coords.accuracy          + '\n' +
+		  'Altitude Accuracy: ' + position.coords.altitudeAccuracy  + '\n' +
+		  'Heading: '           + position.coords.heading           + '\n' +
+		  'Speed: '             + position.coords.speed             + '\n' +
+		  'Timestamp: '         + position.timestamp                + '\n');
+	};
+ 
+	function onError(error) {
+	   alert('code: '    + error.code    + '\n' + 'message: ' + error.message + '\n');
+	}
+ }
+ 
